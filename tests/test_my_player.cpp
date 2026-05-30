@@ -218,4 +218,5 @@ int main(int argc, char *argv[]) {
     while (game.process() == MoveResult::OK) obs.print_game_state(game.get_state());
     obs.print_game_state(game.get_state());
     return 0;
+    
 }
