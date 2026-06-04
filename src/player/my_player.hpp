@@ -30,7 +30,7 @@ class MyPlayer : public IPlayer {
 
         int cell_state(const State& st, int x, int y, Sign player) const;
 
-        int score_line_pattern(const std::array<int, 9>& line) const;
+        int score_line_pattern(const std::vector<int>& line) const;
         int assess_point(const State& st, int cx, int cy, Sign player) const;
         std::vector<PosScore> generate_moves(const State& st, Sign turn) const;
         int heuristic_board(const State& st, Sign turn) const;
@@ -44,7 +44,7 @@ class MyPlayer : public IPlayer {
         Point find_best(const State& st);
 
         // Публичные методы для тестирования
-        int test_score_line_pattern(const std::array<int, 9>& line) const {
+        int test_score_line_pattern(const std::vector<int>& line) const {
             return score_line_pattern(line);
         }
         int test_assess_point(const State& st, int x, int y, Sign player) const {

@@ -13,11 +13,11 @@ int MyPlayer::SearchBrain::cell_state(const State& st, int x, int y, Sign player
 }
 
 // 1. Оценка линии (адаптировано под win_len)
-    int MyPlayer::SearchBrain::score_line_pattern(const std::array<int, 9>& line) const {
+    int MyPlayer::SearchBrain::score_line_pattern(const std::vector<int>& line) const {
     int max_friends = 0;
     
     // Проверяем все возможные окна длины win_len
-    for (int start = 0; start <= 9 - win_len; ++start) {
+    for (int start = 0; start <= (int)line.size() - win_len; ++start) {
         int friends = 0;
         bool blocked = false;
         for (int i = 0; i < win_len; ++i) {
@@ -35,13 +35,16 @@ int MyPlayer::SearchBrain::cell_state(const State& st, int x, int y, Sign player
         }
     }
 
-    // Эвристика для угроз
+    // Эвристика для угрозы: чем больше друзей в ряду, тем выше оценка
     int score = 0;
-    if (max_friends >= win_len - 1) score += 10000;
-    else if (max_friends >= win_len - 2) score += 1000;
-    else if (max_friends >= win_len - 3) score += 100;
-    else if (max_friends >= win_len - 4) score += 10;
-    else if (max_friends >= win_len - 5) score += 1;
+    int base_score = 10000;
+    for (int i = 1; i <= 5 && i < win_len; ++i) {
+        if (max_friends >= win_len - i) {
+            score = base_score;
+            break;
+        }
+        base_score /= 10;  // 10000 → 1000 → 100 → 10 → 1
+    }
     
     return score > 0 ? score : 10;
 }
@@ -65,19 +68,9 @@ int MyPlayer::SearchBrain::cell_state(const State& st, int x, int y, Sign player
                 line[i] = cell_state(st, cx + offset * step[0], cy + offset * step[1], player);
             }
         }
-        
-        // Преобразуем в std::array<int, 9> для совместимости с score_line_pattern
-        std::array<int, 9> fixed_line = {};
-        // Заполняем края "стенами" (2), если line короче 9
-        int start = (9 - line_len) / 2;
-        for (int i = 0; i < line_len && start + i < 9; ++i) {
-            fixed_line[start + i] = line[i];
-        }
-        // Заполняем оставшиеся позиции стенами
-        for (int i = 0; i < start; ++i) fixed_line[i] = 2;
-        for (int i = start + line_len; i < 9; ++i) fixed_line[i] = 2;
-        
-        total += score_line_pattern(fixed_line);
+
+        total += score_line_pattern(line);
+
     }
     return total;
 }
@@ -122,8 +115,8 @@ int MyPlayer::SearchBrain::cell_state(const State& st, int x, int y, Sign player
                     priority += 100000;    // Блокировка серьезной угрозы
                 }
     
-    moves.push_back({x, y, priority});
-}
+                moves.push_back({x, y, priority});
+                }
             }
         }
         // Сортируем ходы по приоритету и оставляем только топ-8 для дальнейшего поиска

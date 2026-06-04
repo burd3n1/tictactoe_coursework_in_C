@@ -30,7 +30,7 @@ bool test_score_line_win4() {
     MyPlayer p("Test");
     MyPlayer::SearchBrain sb(Sign::X, 4); // win_len = 4
 
-    std::array<int, 9> line = {0,0,1,1,1,1,0,0,0}; // 4 подряд — выигрыш!
+    std::vector<int> line = {0,0,1,1,1,1,0,0,0}; // 4 подряд — выигрыш!
     int score = sb.test_score_line_pattern(line);
     bool ok = (score == 1000000);
     std::cout << (ok ? "✅" : "❌") << " score_line win4\n";
@@ -41,7 +41,7 @@ bool test_score_line_threat_win4() {
     MyPlayer p("Test");
     MyPlayer::SearchBrain sb(Sign::X, 4);
 
-    std::array<int, 9> line = {0,0,1,1,1,0,0,0,0}; // 3 подряд — угроза
+    std::vector<int> line = {0,0,1,1,1,0,0,0,0}; // 3 подряд — угроза
     int score = sb.test_score_line_pattern(line);
     bool ok = (score >= 10000); // должно быть высоко
     std::cout << (ok ? "✅" : "❌") << " score_line threat win4 (" << score << ")\n";
