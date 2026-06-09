@@ -25,6 +25,158 @@ struct GameStats {
     int draws = 0;
 };
 
+// Новые тесты для SearchBrain
+bool test_score_line_win4() {
+    MyPlayer p("Test");
+    MyPlayer::SearchBrain sb(Sign::X, 4); // win_len = 4
+
+    std::vector<int> line = {0,0,1,1,1,1,0,0,0}; // 4 подряд — выигрыш!
+    int score = sb.test_score_line_pattern(line);
+    bool ok = (score == 1000000);
+    std::cout << (ok ? "✅" : "❌") << " score_line win4\n";
+    return ok;
+}
+
+bool test_score_line_threat_win4() {
+    MyPlayer p("Test");
+    MyPlayer::SearchBrain sb(Sign::X, 4);
+
+    std::vector<int> line = {0,0,1,1,1,0,0,0,0}; // 3 подряд — угроза
+    int score = sb.test_score_line_pattern(line);
+    bool ok = (score >= 10000); // должно быть высоко
+    std::cout << (ok ? "✅" : "❌") << " score_line threat win4 (" << score << ")\n";
+    return ok;
+}
+
+bool test_assess_center_win3() {
+    State::Opts o{}; o.rows = o.cols = 5; o.win_len = 3; o.max_moves = 0;
+    State st(o);
+    st.process_move(Sign::X, 2, 1);
+    st.process_move(Sign::X, 2, 2);
+
+    MyPlayer::SearchBrain sb(Sign::X, 3);
+    int score = sb.test_assess_point(st, 2, 3, Sign::X); // завершает вертикаль 3-в-ряд
+    bool ok = (score >= 10000);
+    std::cout << (ok ? "✅" : "❌") << " assess_center win3 (" << score << ")\n";
+    return ok;
+}
+
+bool test_generate_moves_respects_winlen() {
+    State::Opts o{}; o.rows = o.cols = 10; o.win_len = 6; o.max_moves = 0;
+    State st(o);
+    st.process_move(Sign::X, 5, 5);
+
+    MyPlayer::SearchBrain sb(Sign::X, 6);
+    auto moves = sb.test_generate_moves(st, Sign::X);
+    bool ok = !moves.empty();
+    std::cout << (ok ? "✅" : "❌") << " generate_moves win6 (count=" << moves.size() << ")\n";
+    return ok;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Тест для cell_state
+// ─────────────────────────────────────────────────────────────
+bool test_cell_state() {
+    State::Opts o{}; o.rows = o.cols = 5; o.win_len = 3; o.max_moves = 0;
+    State st(o);
+    st.process_move(Sign::X, 2, 2);  // своя клетка для X
+    st.process_move(Sign::O, 2, 3);  // клетка противника для X
+
+    MyPlayer::SearchBrain sb(Sign::X, 3);
+    
+    // Пустая клетка → 0
+    bool ok1 = (sb.test_cell_state(st, 0, 0, Sign::X) == 0);
+    // Своя клетка → 1
+    bool ok2 = (sb.test_cell_state(st, 2, 2, Sign::X) == 1);
+    // Клетка противника → 2
+    bool ok3 = (sb.test_cell_state(st, 2, 3, Sign::X) == 2);
+    // За пределами доски → 2
+    bool ok4 = (sb.test_cell_state(st, -1, 0, Sign::X) == 2);
+    bool ok5 = (sb.test_cell_state(st, 10, 10, Sign::X) == 2);
+    
+    bool ok = ok1 && ok2 && ok3 && ok4 && ok5;
+    std::cout << (ok ? "✅" : "❌") << " cell_state\n";
+    return ok;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Тест для heuristic_board
+// ─────────────────────────────────────────────────────────────
+bool test_heuristic_board() {
+    State::Opts o{}; o.rows = o.cols = 5; o.win_len = 3; o.max_moves = 0;
+    State st(o);
+    
+    MyPlayer::SearchBrain sb(Sign::X, 3);
+    
+    // Пустая доска — оценка должна быть около 0
+    int score_empty = sb.test_heuristic_board(st, Sign::X);
+    
+    // Добавим ход для X в центре
+    st.process_move(Sign::X, 2, 2);
+    int score_after_x = sb.test_heuristic_board(st, Sign::X);
+    
+    // Оценка должна стать положительной (позиция X улучшилась)
+    bool ok = (score_after_x > score_empty);
+    std::cout << (ok ? "✅" : "❌") << " heuristic_board (empty=" << score_empty 
+              << ", after_x=" << score_after_x << ")\n";
+    return ok;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Тест для negascout
+// ─────────────────────────────────────────────────────────────
+bool test_negascout() {
+    State::Opts o{}; o.rows = o.cols = 5; o.win_len = 3; o.max_moves = 0;
+    State st(o);
+    
+    st.process_move(Sign::X, 2, 1);
+    st.process_move(Sign::O, 0, 0);
+    st.process_move(Sign::X, 2, 2);
+    st.process_move(Sign::O, 0, 1);
+    MyPlayer::SearchBrain sb(Sign::X, 3);
+    
+    // Оцениваем позицию с точки зрения X на глубине 2
+    int score = sb.test_negascout(st, 2, -2000000000, 2000000000, Sign::X);
+    
+    // Оценка должна быть высокой (близкой к выигрышной), так как X может выиграть
+    bool ok = (score > 10000);
+    std::cout << (ok ? "✅" : "❌") << " negascout (score=" << score << ")\n";
+    return ok;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Тест для find_best (находит ли бот выигрышный ход)
+// ─────────────────────────────────────────────────────────────
+bool test_find_best_wins() {
+    State::Opts o{}; o.rows = o.cols = 5; o.win_len = 3; o.max_moves = 0;
+    State st(o);
+    
+    
+    st.process_move(Sign::X, 1, 2);
+    st.process_move(Sign::O, 0, 0);
+    st.process_move(Sign::X, 2, 2); 
+    st.process_move(Sign::O, 0, 1);
+    
+    if (st.get_value(0, 2) != Sign::NONE || st.get_value(3, 2) != Sign::NONE) {
+        std::cout << "❌ find_best_wins: test setup error - target cells not empty\n";
+        return false;
+    }
+    
+    MyPlayer p("Test");
+    p.set_sign(Sign::X);
+    Point m = p.make_move(st);
+    
+    if (st.get_value(m.x, m.y) != Sign::NONE) {
+        std::cout << "❌ find_best_wins: bot tried to play on occupied cell (" << m.x << "," << m.y << ")\n";
+        return false;
+    }
+    
+    // Бот должен сделать выигрышный ход: y == 2 и x ∈ {0, 3}
+    bool ok = (m.y == 2 && (m.x == 0 || m.x == 3));
+    std::cout << (ok ? "✅" : "❌") << " find_best_wins (move=" << m.x << "," << m.y << ")\n";
+    return ok;
+}
+
 void print_stats(const GameStats& s, const char* my_name, const char* bot_name) {
     std::cout << "\n=== Statistics ===\n";
     std::cout << "Total games:  " << s.total << "\n";
@@ -119,6 +271,14 @@ int run_unit_tests() {
     run(test_respect_obstacles, "obstacles");
     run(test_move_time_limit, "time");
     run(test_basic_strategy, "strategy");
+    run(test_score_line_win4, "score_line_win4");
+    run(test_score_line_threat_win4, "score_line_threat_win4");
+    run(test_assess_center_win3, "assess_center_win3");
+    run(test_generate_moves_respects_winlen, "gen_moves_win6");
+    run(test_cell_state, "cell_state");
+    run(test_heuristic_board, "heuristic_board");
+    run(test_negascout, "negascout");
+    run(test_find_best_wins, "find_best_wins");
     std::cout << "=== " << passed << "/" << total << " passed ===\n";
     return passed == total ? 0 : 1;
 }
@@ -218,4 +378,5 @@ int main(int argc, char *argv[]) {
     while (game.process() == MoveResult::OK) obs.print_game_state(game.get_state());
     obs.print_game_state(game.get_state());
     return 0;
+    
 }
